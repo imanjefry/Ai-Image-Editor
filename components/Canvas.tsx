@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import type { Filter, Tool, Crop } from '../types';
 import { PRESET_FILTERS } from '../types';
 import { UploadIcon } from './icons';
@@ -26,6 +26,32 @@ export const Canvas: React.FC<CanvasProps> = ({ imageSrc, filters, onUpload, isL
   const containerRef = useRef<HTMLDivElement>(null);
   const [isCropping, setIsCropping] = useState(false);
   const [startPoint, setStartPoint] = useState({ x: 0, y: 0 });
+
+  const loadingMessages = [
+    "AI is thinking...",
+    "Warming up the creative circuits...",
+    "Painting with pixels...",
+    "Consulting the digital muse...",
+    "Generating visual magic...",
+  ];
+  const [loadingMessage, setLoadingMessage] = useState(loadingMessages[0]);
+
+  useEffect(() => {
+    let intervalId: number | undefined;
+    if (isLoading) {
+      let currentIndex = 0;
+      intervalId = window.setInterval(() => {
+        currentIndex = (currentIndex + 1) % loadingMessages.length;
+        setLoadingMessage(loadingMessages[currentIndex]);
+      }, 2500);
+    }
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+        setLoadingMessage(loadingMessages[0]);
+      }
+    };
+  }, [isLoading]);
 
   const getCoordinates = (e: React.MouseEvent): { x: number; y: number } => {
     if (!containerRef.current) return { x: 0, y: 0 };
@@ -68,7 +94,7 @@ export const Canvas: React.FC<CanvasProps> = ({ imageSrc, filters, onUpload, isL
       {isLoading && (
         <div className="absolute inset-0 bg-gray-900/80 flex flex-col items-center justify-center z-20 backdrop-blur-sm">
            <div className="w-16 h-16 border-4 border-cyan-400 border-t-transparent rounded-full animate-spin"></div>
-           <p className="mt-4 text-lg text-gray-300">AI is thinking...</p>
+           <p className="mt-4 text-lg text-gray-300">{loadingMessage}</p>
         </div>
       )}
       {imageSrc ? (

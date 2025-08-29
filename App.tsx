@@ -124,7 +124,7 @@ const App: React.FC = () => {
       img.src = newImageSrc;
       resetFiltersAndTools();
     } catch (e) {
-      setError('Failed to edit image with AI. Please check your API key and try again.');
+      setError((e as Error).message || 'Failed to edit image with AI. Please try again.');
       console.error(e);
     } finally {
       setIsLoading(false);
@@ -148,7 +148,7 @@ const App: React.FC = () => {
       img.src = newImageSrc;
       resetFiltersAndTools();
     } catch (e) {
-      setError('Failed to remove background. Please try again.');
+      setError((e as Error).message || 'Failed to remove background. Please try again.');
       console.error(e);
     } finally {
       setIsLoading(false);

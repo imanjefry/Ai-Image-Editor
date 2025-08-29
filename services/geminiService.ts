@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Modality } from "@google/genai";
 
 if (!process.env.API_KEY) {
@@ -46,11 +45,31 @@ export const editImageWithAI = async (
     }
 
     throw new Error("No image data found in the AI response.");
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Error calling Gemini API:", error);
-    if (error instanceof Error) {
-        throw new Error(`Gemini API Error: ${error.message}`);
+
+    let message = "An unknown error occurred while communicating with the Gemini API.";
+
+    if (typeof error === 'object' && error !== null) {
+      const errorAny = error as any;
+      if (errorAny.message && typeof errorAny.message === 'string') {
+        message = errorAny.message;
+      } else if (errorAny.error?.message && typeof errorAny.error.message === 'string') {
+        message = errorAny.error.message;
+      }
+    } else if (typeof error === 'string') {
+      message = error;
     }
-    throw new Error("An unknown error occurred while communicating with the Gemini API.");
+
+    const lowerCaseMessage = message.toLowerCase();
+    if (lowerCaseMessage.includes("region not supported") || lowerCaseMessage.includes("permission denied")) {
+        throw new Error("We're sorry, but AI features are not available in your region.");
+    }
+    
+    if (lowerCaseMessage.includes("api key")) {
+        throw new Error("There seems to be an issue with the API key configuration.");
+    }
+    
+    throw new Error(message);
   }
 };
