@@ -1,0 +1,5 @@
+{
+  "name": "AI Image Editor",
+  "description": "An advanced image editor powered by the Gemini API. Upload your photos and use a suite of powerful AI tools to edit, enhance, and transform them. When you're done, download your creation with a single click.",
+  "requestFramePermissions": []
+}
