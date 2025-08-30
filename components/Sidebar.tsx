@@ -15,10 +15,14 @@ import {
   CheckIcon,
   CropIcon,
   RemoveBgIcon,
+  UpscaleIcon,
   FilterIcon,
   TextIcon,
   LayerIcon,
   TrashIcon,
+  EyedropperIcon,
+  FrameIcon,
+  ColorizeIcon,
 } from './icons';
 
 interface SidebarProps {
@@ -38,6 +42,8 @@ interface SidebarProps {
   applyCrop: () => void;
   crop: Crop | null;
   handleRemoveBackground: () => void;
+  handleUpscaleImage: () => void;
+  handleColorizeImage: () => void;
   textOverlay: TextOverlay | null;
   setTextOverlay: React.Dispatch<React.SetStateAction<TextOverlay | null>>;
   applyText: () => void;
@@ -48,6 +54,10 @@ interface SidebarProps {
   deleteOverlay: (id: string) => void;
   onUploadOverlay: () => void;
   applyOverlays: () => void;
+  selectedColor: string;
+  frameWidth: number;
+  setFrameWidth: (width: number) => void;
+  applyFrame: () => void;
 }
 
 const ToolSection: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
@@ -74,6 +84,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   applyCrop,
   crop,
   handleRemoveBackground,
+  handleUpscaleImage,
+  handleColorizeImage,
   textOverlay,
   setTextOverlay,
   applyText,
@@ -84,6 +96,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
   deleteOverlay,
   onUploadOverlay,
   applyOverlays,
+  selectedColor,
+  frameWidth,
+  setFrameWidth,
+  applyFrame,
 }) => {
   const handleToolClick = (tool: Tool) => {
     setActiveTool(activeTool === tool ? null : tool);
@@ -112,6 +128,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
       case 'layer':
         applyOverlays();
         break;
+      case 'frame':
+        applyFrame();
+        break;
       case 'adjust':
       case 'rotate':
       case 'flip':
@@ -121,7 +140,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     }
   };
 
-  const isApplyToolActive = ['adjust', 'rotate', 'flip', 'filters', 'crop', 'text', 'layer'].includes(activeTool || '');
+  const isApplyToolActive = ['adjust', 'rotate', 'flip', 'filters', 'crop', 'text', 'layer', 'frame'].includes(activeTool || '');
   const activeOverlay = overlays.find(o => o.id === activeOverlayId);
 
   return (
@@ -151,9 +170,35 @@ export const Sidebar: React.FC<SidebarProps> = ({
               disabled={!hasImage}
             />
             <IconButton
+              icon={<ColorizeIcon />}
+              label="Colorize Image"
+              onClick={handleColorizeImage}
+              disabled={!hasImage}
+            />
+            <IconButton
               icon={<RemoveBgIcon />}
               label="Remove Background"
               onClick={handleRemoveBackground}
+              disabled={!hasImage}
+            />
+            <IconButton
+              icon={<UpscaleIcon />}
+              label="AI Upscale"
+              onClick={handleUpscaleImage}
+              disabled={!hasImage}
+            />
+            <IconButton
+              icon={<EyedropperIcon />}
+              label="Eyedropper"
+              onClick={() => handleToolClick('eyedropper')}
+              isActive={activeTool === 'eyedropper'}
+              disabled={!hasImage}
+            />
+             <IconButton
+              icon={<FrameIcon />}
+              label="Frame"
+              onClick={() => handleToolClick('frame')}
+              isActive={activeTool === 'frame'}
               disabled={!hasImage}
             />
              <IconButton
@@ -210,6 +255,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         {hasImage && (
           <div className="px-4 py-2 transition-all duration-300 ease-in-out">
+            {activeTool === 'frame' && (
+              <div className="space-y-4 animate-fade-in">
+                <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Frame Options</h4>
+                <div>
+                    <label className="text-xs text-gray-400 mb-1 block">Frame Color</label>
+                    <div className="w-full h-10 p-1 rounded-md bg-gray-700/50 border border-gray-600 flex items-center">
+                        <div className="w-full h-full rounded" style={{ backgroundColor: selectedColor }}></div>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">Use the Eyedropper tool to pick a color from the image.</p>
+                </div>
+                <Slider
+                  label="Width (%)"
+                  value={frameWidth}
+                  onChange={(e) => setFrameWidth(+e.target.value)}
+                  min={1}
+                  max={20}
+                />
+              </div>
+            )}
             {activeTool === 'layer' && (
                 <div className="space-y-4 animate-fade-in">
                     <IconButton icon={<UploadIcon />} label="Add Image Layer" onClick={onUploadOverlay} />

@@ -122,3 +122,87 @@ export const removeBackgroundAI = async (
       throw handleGeminiError(error);
     }
   };
+
+export const upscaleImageAI = async (
+    base64ImageData: string,
+    mimeType: string,
+): Promise<string> => {
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash-image-preview',
+            contents: {
+                parts: [
+                    {
+                        inlineData: {
+                            data: base64ImageData,
+                            mimeType: mimeType,
+                        },
+                    },
+                    {
+                        text: "Upscale this image to a higher resolution, enhancing details and clarity without altering the content. The output should be a high-quality PNG.",
+                    },
+                ],
+            },
+            config: {
+                responseModalities: [Modality.IMAGE, Modality.TEXT],
+            },
+        });
+
+        for (const part of response.candidates?.[0]?.content?.parts || []) {
+            if (part.inlineData) {
+                return part.inlineData.data;
+            }
+        }
+
+        const firstCandidate = response.candidates?.[0];
+        if (firstCandidate?.finishReason && firstCandidate.finishReason !== 'STOP') {
+            throw new Error(`Image upscaling failed due to: ${firstCandidate.finishReason}`);
+        }
+
+        throw new Error("No image data found in the AI response for upscaling.");
+    } catch (error: unknown) {
+        throw handleGeminiError(error);
+    }
+};
+
+export const colorizeImageAI = async (
+    base64ImageData: string,
+    mimeType: string,
+): Promise<string> => {
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash-image-preview',
+            contents: {
+                parts: [
+                    {
+                        inlineData: {
+                            data: base64ImageData,
+                            mimeType: mimeType,
+                        },
+                    },
+                    {
+                        text: "Colorize this black and white or grayscale image. The output should be a realistic, full-color PNG image, preserving the original composition and details.",
+                    },
+                ],
+            },
+            config: {
+                responseModalities: [Modality.IMAGE, Modality.TEXT],
+            },
+        });
+
+        for (const part of response.candidates?.[0]?.content?.parts || []) {
+            if (part.inlineData) {
+                return part.inlineData.data;
+            }
+        }
+
+        const firstCandidate = response.candidates?.[0];
+        if (firstCandidate?.finishReason && firstCandidate.finishReason !== 'STOP') {
+            throw new Error(`Image colorization failed due to: ${firstCandidate.finishReason}`);
+        }
+
+        throw new Error("No image data found in the AI response for colorization.");
+    } catch (error: unknown) {
+        throw handleGeminiError(error);
+    }
+};

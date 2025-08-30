@@ -1,10 +1,18 @@
-
 import React, { useState } from 'react';
 
 interface ModalProps {
   onClose: () => void;
   onSubmit: (prompt: string) => void;
 }
+
+const promptSuggestions = [
+  'Change the background to a dense forest.',
+  'Apply a vintage, black and white film effect.',
+  'Make it look like a watercolor painting.',
+  'Add a small, cute robot to the scene.',
+  'Turn the sky into a starry night.',
+  'Give the image a futuristic, cyberpunk style.',
+];
 
 export const Modal: React.FC<ModalProps> = ({ onClose, onSubmit }) => {
   const [prompt, setPrompt] = useState('');
@@ -35,7 +43,22 @@ export const Modal: React.FC<ModalProps> = ({ onClose, onSubmit }) => {
             className="w-full p-2 rounded-md bg-gray-900 border border-gray-600 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition text-gray-200 h-28 resize-none"
             autoFocus
           />
-          <div className="flex justify-end mt-4 space-x-2">
+          <div className="mt-4">
+              <p className="text-xs text-gray-400 mb-2">Suggestions:</p>
+              <div className="flex flex-wrap gap-2">
+                  {promptSuggestions.map((suggestion) => (
+                      <button
+                          key={suggestion}
+                          type="button"
+                          onClick={() => setPrompt(suggestion)}
+                          className="px-3 py-1 bg-gray-700/60 hover:bg-gray-600/80 text-gray-300 rounded-full text-xs transition-colors"
+                      >
+                          {suggestion}
+                      </button>
+                  ))}
+              </div>
+          </div>
+          <div className="flex justify-end mt-6 space-x-2">
             <button
               type="button"
               onClick={onClose}

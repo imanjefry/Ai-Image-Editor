@@ -4,7 +4,7 @@ import { Sidebar } from './components/Sidebar';
 import { Canvas } from './components/Canvas';
 import { Modal } from './components/Modal';
 import { useImageHistory } from './hooks/useImageHistory';
-import { editImageWithAI, removeBackgroundAI } from './services/geminiService';
+import { editImageWithAI, removeBackgroundAI, upscaleImageAI, colorizeImageAI } from './services/geminiService';
 import type { Tool, Filter, ImageDimensions, Crop, PresetFilter, TextOverlay, OverlayImage } from './types';
 import { PRESET_FILTERS } from './types';
 
@@ -20,6 +20,8 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [imageDimensions, setImageDimensions] = useState<ImageDimensions | null>(null);
+  const [selectedColor, setSelectedColor] = useState<string>('#FFFFFF');
+  const [frameWidth, setFrameWidth] = useState<number>(4);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const overlayFileInputRef = useRef<HTMLInputElement>(null);
@@ -200,6 +202,54 @@ const App: React.FC = () => {
       setIsLoading(false);
     }
   };
+
+  const handleUpscaleImage = async () => {
+    if (!imageSrc) return;
+    setIsLoading(true);
+    setError(null);
+    try {
+      const mimeType = imageSrc.substring(imageSrc.indexOf(':') + 1, imageSrc.indexOf(';'));
+      const base64Data = imageSrc.split(',')[1];
+      const newImageBase64 = await upscaleImageAI(base64Data, mimeType);
+      const newImageSrc = `data:image/png;base64,${newImageBase64}`;
+      const img = new Image();
+      img.onload = () => {
+          setImageDimensions({ width: img.width, height: img.height });
+          setImageSrc(newImageSrc);
+      };
+      img.src = newImageSrc;
+      resetFiltersAndTools();
+    } catch (e) {
+      setError((e as Error).message || 'Failed to upscale image. Please try again.');
+      console.error(e);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleColorizeImage = async () => {
+    if (!imageSrc) return;
+    setIsLoading(true);
+    setError(null);
+    try {
+      const mimeType = imageSrc.substring(imageSrc.indexOf(':') + 1, imageSrc.indexOf(';'));
+      const base64Data = imageSrc.split(',')[1];
+      const newImageBase64 = await colorizeImageAI(base64Data, mimeType);
+      const newImageSrc = `data:image/png;base64,${newImageBase64}`;
+      const img = new Image();
+      img.onload = () => {
+          setImageDimensions({ width: img.width, height: img.height });
+          setImageSrc(newImageSrc);
+      };
+      img.src = newImageSrc;
+      resetFiltersAndTools();
+    } catch (e) {
+      setError((e as Error).message || 'Failed to colorize image. Please try again.');
+      console.error(e);
+    } finally {
+      setIsLoading(false);
+    }
+  };
   
     const handleCrop = useCallback(() => {
     if (!imageSrc || !crop || !imageDimensions) return;
@@ -341,8 +391,45 @@ const App: React.FC = () => {
     };
   }, [imageSrc, overlays, imageDimensions, setImageSrc, resetFiltersAndTools]);
   
+  const handleApplyFrame = useCallback(() => {
+    if (!imageSrc || !imageDimensions) return;
+
+    const img = new Image();
+    img.onload = () => {
+      const borderWidthPx = (frameWidth / 100) * Math.min(img.width, img.height);
+      const newWidth = img.width + borderWidthPx * 2;
+      const newHeight = img.height + borderWidthPx * 2;
+      
+      const canvas = document.createElement('canvas');
+      canvas.width = newWidth;
+      canvas.height = newHeight;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      ctx.fillStyle = selectedColor;
+      ctx.fillRect(0, 0, newWidth, newHeight);
+
+      ctx.drawImage(img, borderWidthPx, borderWidthPx);
+
+      const newImageSrc = canvas.toDataURL('image/png');
+      const newImg = new Image();
+      newImg.onload = () => {
+          setImageDimensions({ width: newImg.width, height: newImg.height });
+          setImageSrc(newImageSrc);
+          resetFiltersAndTools();
+      };
+      newImg.src = newImageSrc;
+    };
+    img.src = imageSrc;
+  }, [imageSrc, imageDimensions, frameWidth, selectedColor, setImageSrc, resetFiltersAndTools]);
+
+  const handleColorPicked = (color: string) => {
+    setSelectedColor(color);
+    setActiveTool('frame');
+  };
+
   useEffect(() => {
-    if (activeTool !== 'adjust' && activeTool !== 'rotate' && activeTool !== 'flip' && activeTool !== 'crop' && activeTool !== 'filters' && activeTool !== 'text' && activeTool !== 'layer') {
+    if (activeTool !== 'adjust' && activeTool !== 'rotate' && activeTool !== 'flip' && activeTool !== 'crop' && activeTool !== 'filters' && activeTool !== 'text' && activeTool !== 'layer' && activeTool !== 'frame') {
        const isDefault = filters.brightness === 100 && filters.contrast === 100 && filters.saturation === 100 && filters.rotation === 0 && filters.scaleX === 1 && filters.scaleY === 1 && filters.preset === 'none';
        if(!isDefault) {
           applyAndSaveFilters();
@@ -390,6 +477,8 @@ const App: React.FC = () => {
           applyCrop={handleCrop}
           crop={crop}
           handleRemoveBackground={handleRemoveBackground}
+          handleUpscaleImage={handleUpscaleImage}
+          handleColorizeImage={handleColorizeImage}
           textOverlay={textOverlay}
           setTextOverlay={setTextOverlay}
           applyText={applyText}
@@ -400,6 +489,10 @@ const App: React.FC = () => {
           deleteOverlay={deleteOverlay}
           onUploadOverlay={triggerOverlayUpload}
           applyOverlays={applyOverlays}
+          selectedColor={selectedColor}
+          frameWidth={frameWidth}
+          setFrameWidth={setFrameWidth}
+          applyFrame={handleApplyFrame}
         />
         <main className="flex-1 flex flex-col items-center justify-center p-8 bg-gray-800 relative">
           <Canvas 
@@ -416,6 +509,7 @@ const App: React.FC = () => {
             activeOverlayId={activeOverlayId}
             setActiveOverlayId={setActiveOverlayId}
             updateOverlayOptions={updateOverlayOptions}
+            onColorPicked={handleColorPicked}
           />
           {error && (
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-red-500 text-white py-2 px-4 rounded-md shadow-lg">
@@ -447,5 +541,8 @@ const App: React.FC = () => {
     </div>
   );
 };
+
+import { API_KEY } from './config';
+console.log(API_KEY);
 
 export default App;

@@ -17,6 +17,7 @@ interface CanvasProps {
   activeOverlayId: string | null;
   setActiveOverlayId: (id: string | null) => void;
   updateOverlayOptions: (id: string, newOptions: Partial<OverlayImage['options']>) => void;
+  onColorPicked: (color: string) => void;
 }
 
 // Helper to get coordinates from either mouse or touch events
@@ -40,7 +41,8 @@ export const Canvas: React.FC<CanvasProps> = ({
     overlays,
     activeOverlayId,
     setActiveOverlayId,
-    updateOverlayOptions
+    updateOverlayOptions,
+    onColorPicked,
 }) => {
   const baseFilter = `brightness(${filters.brightness}%) contrast(${filters.contrast}%) saturate(${filters.saturation}%)`;
   const presetFilter = PRESET_FILTERS[filters.preset] === 'none' ? '' : PRESET_FILTERS[filters.preset];
@@ -118,7 +120,53 @@ export const Canvas: React.FC<CanvasProps> = ({
     return { x: Math.max(0, Math.min(100, x)), y: Math.max(0, Math.min(100, y)) };
   };
 
+  const handlePickColor = (e: React.MouseEvent | React.TouchEvent) => {
+    if (!imageSrc || !containerRef.current) return;
+  
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      if (!ctx) return;
+  
+      // Apply filters to the canvas to pick the color the user sees.
+      // Note: This simplified version does not account for rotation/scale transforms.
+      ctx.filter = imageStyle.filter;
+      ctx.drawImage(img, 0, 0);
+  
+      const imageEl = containerRef.current!.querySelector('img');
+      if (!imageEl) return;
+      
+      const imageRect = imageEl.getBoundingClientRect();
+      const { clientX, clientY } = getClientCoords(e);
+  
+      // Calculate click position relative to the visual image element
+      const xOnImage = clientX - imageRect.left;
+      const yOnImage = clientY - imageRect.top;
+  
+      // Scale click position to the original image dimensions
+      const xOnCanvas = (xOnImage / imageRect.width) * img.width;
+      const yOnCanvas = (yOnImage / imageRect.height) * img.height;
+  
+      const pixel = ctx.getImageData(xOnCanvas, yOnCanvas, 1, 1).data;
+      const r = pixel[0].toString(16).padStart(2, '0');
+      const g = pixel[1].toString(16).padStart(2, '0');
+      const b = pixel[2].toString(16).padStart(2, '0');
+      const hex = `#${r}${g}${b}`;
+      
+      onColorPicked(hex);
+    };
+    img.src = imageSrc;
+  };
+
   const handleContainerPointerDown = (e: React.MouseEvent | React.TouchEvent) => {
+    if (activeTool === 'eyedropper') {
+        handlePickColor(e);
+        return;
+    }
     if (activeTool !== 'crop') return;
     setIsCropping(true);
     const coords = getCoordinates(e);
@@ -220,7 +268,7 @@ export const Canvas: React.FC<CanvasProps> = ({
             onTouchStart={handleContainerPointerDown}
             onTouchMove={handleContainerPointerMove}
             onTouchEnd={handleContainerPointerUp}
-            style={{ cursor: activeTool === 'crop' ? 'crosshair' : 'default' }}
+            style={{ cursor: activeTool === 'crop' ? 'crosshair' : activeTool === 'eyedropper' ? 'copy' : 'default' }}
         >
             <img
                 src={imageSrc}

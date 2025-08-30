@@ -1,4 +1,4 @@
-export type Tool = 'adjust' | 'rotate' | 'flip' | 'ai' | 'crop' | 'filters' | 'text' | 'layer';
+export type Tool = 'adjust' | 'rotate' | 'flip' | 'ai' | 'crop' | 'filters' | 'text' | 'layer' | 'eyedropper' | 'frame';
 
 export const PRESET_FILTERS = {
   none: 'none',
