@@ -1,6 +1,6 @@
 import React from 'react';
-import type { Tool, Filter, Crop, PresetFilter } from '../types';
-import { PRESET_FILTERS } from '../types';
+import type { Tool, Filter, Crop, PresetFilter, TextOverlay, FontFace, OverlayImage, BlendMode } from '../types';
+import { PRESET_FILTERS, FONT_FACES, BLEND_MODES } from '../types';
 import { IconButton } from './IconButton';
 import { Slider } from './Slider';
 import {
@@ -16,6 +16,9 @@ import {
   CropIcon,
   RemoveBgIcon,
   FilterIcon,
+  TextIcon,
+  LayerIcon,
+  TrashIcon,
 } from './icons';
 
 interface SidebarProps {
@@ -35,6 +38,16 @@ interface SidebarProps {
   applyCrop: () => void;
   crop: Crop | null;
   handleRemoveBackground: () => void;
+  textOverlay: TextOverlay | null;
+  setTextOverlay: React.Dispatch<React.SetStateAction<TextOverlay | null>>;
+  applyText: () => void;
+  overlays: OverlayImage[];
+  activeOverlayId: string | null;
+  setActiveOverlayId: (id: string | null) => void;
+  updateOverlayOptions: (id: string, options: Partial<OverlayImage['options']>) => void;
+  deleteOverlay: (id: string) => void;
+  onUploadOverlay: () => void;
+  applyOverlays: () => void;
 }
 
 const ToolSection: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
@@ -61,6 +74,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
   applyCrop,
   crop,
   handleRemoveBackground,
+  textOverlay,
+  setTextOverlay,
+  applyText,
+  overlays,
+  activeOverlayId,
+  setActiveOverlayId,
+  updateOverlayOptions,
+  deleteOverlay,
+  onUploadOverlay,
+  applyOverlays,
 }) => {
   const handleToolClick = (tool: Tool) => {
     setActiveTool(activeTool === tool ? null : tool);
@@ -78,8 +101,28 @@ export const Sidebar: React.FC<SidebarProps> = ({
     setFilters(f => ({...f, rotation: (f.rotation + deg + 360) % 360 }));
   }
 
-  const isFilterToolActive = activeTool === 'adjust' || activeTool === 'rotate' || activeTool === 'flip' || activeTool === 'filters';
-  const isCropToolActive = activeTool === 'crop';
+  const handleApply = () => {
+    switch(activeTool) {
+      case 'crop':
+        applyCrop();
+        break;
+      case 'text':
+        applyText();
+        break;
+      case 'layer':
+        applyOverlays();
+        break;
+      case 'adjust':
+      case 'rotate':
+      case 'flip':
+      case 'filters':
+        applyFilters();
+        break;
+    }
+  };
+
+  const isApplyToolActive = ['adjust', 'rotate', 'flip', 'filters', 'crop', 'text', 'layer'].includes(activeTool || '');
+  const activeOverlay = overlays.find(o => o.id === activeOverlayId);
 
   return (
     <aside className="w-80 bg-gray-900/60 backdrop-blur-md border-r border-gray-700 flex flex-col z-10 shadow-2xl">
@@ -111,6 +154,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
               icon={<RemoveBgIcon />}
               label="Remove Background"
               onClick={handleRemoveBackground}
+              disabled={!hasImage}
+            />
+             <IconButton
+              icon={<LayerIcon />}
+              label="Layer"
+              onClick={() => handleToolClick('layer')}
+              isActive={activeTool === 'layer'}
+              disabled={!hasImage}
+            />
+            <IconButton
+              icon={<TextIcon />}
+              label="Text"
+              onClick={() => handleToolClick('text')}
+              isActive={activeTool === 'text'}
               disabled={!hasImage}
             />
             <IconButton
@@ -153,6 +210,100 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         {hasImage && (
           <div className="px-4 py-2 transition-all duration-300 ease-in-out">
+            {activeTool === 'layer' && (
+                <div className="space-y-4 animate-fade-in">
+                    <IconButton icon={<UploadIcon />} label="Add Image Layer" onClick={onUploadOverlay} />
+
+                    {overlays.length > 0 && (
+                        <div className="space-y-2">
+                            <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Layers</h4>
+                            <ul className="space-y-1 max-h-40 overflow-y-auto pr-1">
+                                {overlays.map((ov, index) => (
+                                    <li key={ov.id}>
+                                        <div 
+                                            onClick={() => setActiveOverlayId(ov.id)}
+                                            className={`w-full flex items-center justify-between p-2 rounded-md transition-colors text-sm cursor-pointer ${activeOverlayId === ov.id ? 'bg-cyan-500/20 text-cyan-300 ring-1 ring-cyan-400/50' : 'bg-gray-700/50 hover:bg-gray-600/50 text-gray-300'}`}
+                                        >
+                                            <span>Layer {index + 1}</span>
+                                            <button onClick={(e) => { e.stopPropagation(); deleteOverlay(ov.id); }} className="p-1 text-gray-400 hover:text-red-400 rounded-full hover:bg-red-500/20">
+                                                <TrashIcon className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
+                     {activeOverlay && activeOverlayId && (
+                        <div className="space-y-4 pt-4 mt-4 border-t border-gray-700/50">
+                             <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Selected Layer</h4>
+                            <Slider
+                                label="Opacity"
+                                value={activeOverlay.options.opacity * 100}
+                                onChange={(e) => updateOverlayOptions(activeOverlayId, { opacity: +e.target.value / 100 })}
+                                min={0}
+                                max={100}
+                            />
+                            <div>
+                                <label className="text-xs text-gray-400 mb-1 block">Blend Mode</label>
+                                <select
+                                    value={activeOverlay.options.blendMode}
+                                    onChange={(e) => updateOverlayOptions(activeOverlayId, { blendMode: e.target.value as BlendMode })}
+                                    className="w-full p-2 rounded-md bg-gray-700/50 border border-gray-600 focus:ring-1 focus:ring-cyan-500 focus:border-cyan-500 transition text-gray-200 capitalize"
+                                >
+                                    {BLEND_MODES.map(mode => <option key={mode} value={mode}>{mode === 'source-over' ? 'Normal' : mode.replace(/-/g, ' ')}</option>)}
+                                </select>
+                            </div>
+                             <button
+                                onClick={() => deleteOverlay(activeOverlayId)}
+                                className="w-full flex items-center text-left p-2 rounded-md transition-all duration-200 ease-in-out text-sm font-medium text-red-400 hover:bg-red-500/20 hover:text-red-300"
+                            >
+                                <TrashIcon className="w-5 h-5 mr-3" />
+                                Remove Selected Layer
+                            </button>
+                        </div>
+                    )}
+                </div>
+            )}
+             {activeTool === 'text' && textOverlay && (
+              <div className="space-y-4 animate-fade-in">
+                <div>
+                  <label className="text-xs text-gray-400 mb-1 block">Text</label>
+                  <input
+                    type="text"
+                    value={textOverlay.text}
+                    onChange={(e) => setTextOverlay({ ...textOverlay, text: e.target.value })}
+                    className="w-full p-2 rounded-md bg-gray-700/50 border border-gray-600 focus:ring-1 focus:ring-cyan-500 focus:border-cyan-500 transition text-gray-200"
+                  />
+                </div>
+                <div>
+                    <label className="text-xs text-gray-400 mb-1 block">Font</label>
+                    <select
+                        value={textOverlay.font}
+                        onChange={(e) => setTextOverlay({ ...textOverlay, font: e.target.value as FontFace })}
+                        className="w-full p-2 rounded-md bg-gray-700/50 border border-gray-600 focus:ring-1 focus:ring-cyan-500 focus:border-cyan-500 transition text-gray-200"
+                    >
+                        {FONT_FACES.map(font => <option key={font} value={font}>{font}</option>)}
+                    </select>
+                </div>
+                <Slider
+                  label="Size"
+                  value={textOverlay.size}
+                  onChange={(e) => setTextOverlay({ ...textOverlay, size: +e.target.value })}
+                  min={1}
+                  max={20}
+                />
+                 <div>
+                    <label className="text-xs text-gray-400 mb-1 block">Color</label>
+                    <input
+                        type="color"
+                        value={textOverlay.color}
+                        onChange={(e) => setTextOverlay({ ...textOverlay, color: e.target.value })}
+                        className="w-full h-10 p-1 rounded-md bg-gray-700/50 border border-gray-600 cursor-pointer"
+                    />
+                </div>
+              </div>
+            )}
             {activeTool === 'adjust' && (
               <div className="space-y-4 animate-fade-in">
                 <Slider
@@ -213,15 +364,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
         )}
       </div>
 
-       {(isFilterToolActive || isCropToolActive) && (
+       {isApplyToolActive && (
         <div className="p-4 border-t border-gray-700">
           <button
-            onClick={isCropToolActive ? applyCrop : applyFilters}
+            onClick={handleApply}
             className="w-full flex items-center justify-center bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-2 px-4 rounded-md transition-colors duration-200 disabled:bg-gray-500 disabled:cursor-not-allowed"
-            disabled={!hasImage || (isCropToolActive && !crop)}
+            disabled={!hasImage || (activeTool === 'crop' && !crop) || (activeTool === 'layer' && overlays.length === 0)}
           >
             <CheckIcon className="w-5 h-5 mr-2" />
-            {isCropToolActive ? 'Apply Crop' : 'Apply Changes'}
+            Apply Changes
           </button>
         </div>
       )}
