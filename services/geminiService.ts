@@ -1,10 +1,14 @@
 import { GoogleGenAI, Modality } from "@google/genai";
 
-if (!process.env.API_KEY) {
-    throw new Error("API_KEY environment variable not set");
+// FIX: Per coding guidelines, API key must be read from process.env.API_KEY.
+// The previous use of import.meta.env.VITE_API_KEY was incorrect and caused a TypeScript error.
+const apiKey = process.env.API_KEY;
+
+if (!apiKey) {
+    throw new Error("API_KEY environment variable not set. Please ensure it is configured.");
 }
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+const ai = new GoogleGenAI({ apiKey });
 
 const handleGeminiError = (error: unknown): Error => {
     console.error("Error calling Gemini API:", error);
